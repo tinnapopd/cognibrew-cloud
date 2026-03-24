@@ -1,0 +1,75 @@
+@startuml container-diagram
+!include <C4/C4_Container>
+
+title Face Recognition MLOps Platform - Container Diagram
+
+LAYOUT_TOP_DOWN()
+
+' Actors
+Person(admin, "Admin", "Manages baseline faces, monitors drift, rollbacks vectors")
+Person(volunteer, "Volunteer / Customer", "Enrolls face for Initial Embedding. Verifies identity when Fallback triggers.")
+
+' External Systems
+System_Ext(edge, "CogniBrew Edge", "Runs InsightFace model for face recognition.\n- Live recognition with confidence scoring\n- Fallback to manual verification when below threshold\n- Pulls sync bundle from cloud on its own schedule (edge-pull)")
+
+' System
+System_Boundary(cloud, "Cloud Platform") {
+
+    ' Storage Layer
+    ContainerDb(raw_store, "Raw Data Store", "RustFS (S3-compatible)", "Stores raw batch JSON: /{date}/{device_id}.json\nIncludes metadata: is_correct, is_fallback, anchor_type")
+
+    ' Orchestration Layer — Airflow 3 (LocalExecutor, no Celery/Redis)
+    Boundary(airflow_cluster, "Airflow Orchestrator (Apache Airflow 3 / LocalExecutor)") {
+        Container(af_apiserver, "airflow-apiserver", "Apache Airflow 3\napi-server :8080", "Web UI & REST API.\nHealthcheck: GET /api/v2/monitor/health")
+        Container(af_scheduler, "airflow-scheduler", "Apache Airflow 3\nscheduler", "Triggers DAG runs on schedule.\nExecutes tasks in-process (LocalExecutor).\nHealthcheck: :8974/health")
+        Container(af_dag_processor, "airflow-dag-processor", "Apache Airflow 3\ndag-processor", "Parses & validates DAG files.\nRequired separate process in Airflow 3.")
+    }
+
+    ' DAG embedded logic (PythonOperator — runs inside scheduler process)
+    Container(dag_logic, "cognibrew_daily_pipeline DAG", "Python (embedded in Airflow)\nSchedule: 02:00 UTC daily", "Tasks:\n1. read_batch — resolve S3 key\n2. process_vectors — drift detection + outlier filter + gallery expansion\n3. tune_confidence — threshold sweep + per-user tuning\n4. gallery_expansion — add fallback-verified secondary anchors\n5. sync_edge_healthcheck — confirm edge-sync is reachable")
+
+    ' Data Stores
+    ContainerDb(vector_db, "Vector Database", "Qdrant v1.17\n(gRPC :6334)", "Per-user vector gallery:\n- Baseline vector (primary anchor)\n- Secondary anchors (fallback-verified)\n- Temporal vectors (auto-captured changes)\n512-dim cosine similarity index.")
+    ContainerDb(metadata_db, "Metadata DB", "PostgreSQL 17\n(:5432)", "Airflow metadata (DAG runs, task state).\nUser profiles, confidence history,\ngallery anchor metadata (type, timestamp, source).")
+
+    ' Experiment Tracking
+    Container(mlflow, "MLflow Server", "MLflow\n(:5000)", "Logs: drift scores, similarity metrics,\noutlier counts, confidence curves,\ngallery expansion events, concept drift rate.\nArtifact store backed by RustFS.")
+
+    ' Sync Layer (Edge-Pull) — reads directly from Qdrant + PostgreSQL
+    Container(sync_svc, "Edge Sync", "FastAPI\n[edge-sync, local build]", "Assembles pull bundle for edge devices.\nReads threshold from PostgreSQL confidence_history.\nReads vector gallery from Qdrant.\nExposes: GET /sync/status (health)\n         GET /sync/bundle (edge-pull)")
+}
+
+' ── Data Flow ──
+
+' 1. Enrollment
+Rel(volunteer, edge, "1. Enroll face", "Camera capture")
+Rel(edge, raw_store, "2. Upload initial embedding\n(baseline vector)", "HTTPS/REST")
+
+' 3. Daily batch
+Rel(edge, raw_store, "3. Daily batch upload\n(incl. fallback-verified vectors)", "HTTPS/REST")
+
+' 5-9. Airflow orchestration
+Rel(af_scheduler, dag_logic, "Executes tasks\n(LocalExecutor in-process)", "internal")
+Rel(af_dag_processor, af_scheduler, "Parsed DAG definitions", "internal")
+Rel(dag_logic, raw_store, "5. Read raw batch", "S3 API")
+Rel(dag_logic, vector_db, "6. Read/Write per-user gallery\n(drift + outlier + expansion)", "gRPC")
+Rel(dag_logic, metadata_db, "7. Read feedback /\nWrite threshold history", "SQL (asyncpg)")
+Rel(dag_logic, mlflow, "Log drift, outlier,\nthreshold, gallery metrics", "HTTP")
+Rel(dag_logic, sync_svc, "8. Health-check\nGET /sync/status", "HTTP")
+
+' Sync Service — EDGE-PULL pattern (reads directly from Qdrant + PostgreSQL)
+Rel(sync_svc, metadata_db, "Read latest threshold\nconfidence_history table", "SQL (asyncpg)")
+Rel(sync_svc, vector_db, "Read full vector gallery\nall users", "gRPC")
+Rel(edge, sync_svc, "Pull threshold + gallery updates\n(edge-pull: GET /sync/bundle)\nEdge initiates on its own schedule", "HTTPS/REST")
+
+' Fallback loop
+Rel(edge, volunteer, "Fallback: request manual verification\n(when confidence < threshold)", "UI prompt")
+
+' MLflow artifact store
+Rel(mlflow, raw_store, "Store experiment artifacts", "S3 API")
+
+' Admin
+Rel(admin, mlflow, "Monitor drift, gallery growth,\nconfidence, concept drift", "HTTPS :5000")
+Rel(admin, af_apiserver, "Manage DAGs + trigger re-enrollment\nAirflow Web UI", "HTTPS :8080")
+
+@enduml

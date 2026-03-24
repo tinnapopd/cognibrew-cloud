@@ -1,0 +1,89 @@
+services:
+  # Infrastructure
+  rustfs:
+    image: rustfs/rustfs:1.0.0-alpha.89
+    container_name: cognibrew-rustfs
+    restart: unless-stopped
+    command: server /data
+    ports:
+      # - "9000:9000" # S3
+      - "9001:9001" # Console
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+    volumes:
+      - rustfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cognibrew-cloud
+
+  qdrant:
+    image: qdrant/qdrant:v1.17
+    container_name: cognibrew-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333" # HTTP
+    #   - "6334:6334" # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/6334'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cognibrew-cloud
+
+  postgres:
+    image: postgres:17.9
+    container_name: cognibrew-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cognibrew}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognibrew}
+      POSTGRES_DB: ${POSTGRES_DB:-cognibrew}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cognibrew}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cognibrew-cloud
+
+  mlflow:
+    build: ./mlflow-server
+    container_name: cognibrew-mlflow
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER:-cognibrew}:${POSTGRES_PASSWORD:-cognibrew}@postgres:5432/${POSTGRES_DB:-cognibrew}
+      MLFLOW_S3_ENDPOINT_URL: http://rustfs:9000
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-rustfsadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    networks:
+      - cognibrew-cloud
+
+volumes:
+  rustfs_data:
+  qdrant_data:
+  postgres_data:
+
+networks:
+  cognibrew-cloud:
+    driver: bridge

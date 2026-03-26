@@ -1,5 +1,6 @@
 # Cognibrew Applications
 x-fastapi-common: &fastapi-common
+  platform: linux/amd64
   restart: unless-stopped
   networks:
     - cognibrew-cloud
@@ -9,6 +10,8 @@ services:
     image: teetinnapop/actions:cognibrew-cloud-edge-gateway-latest
     container_name: cognibrew-edge-gateway
     <<: *fastapi-common
+    ports:
+      - "8000:8000"
     environment:
       LOG_LEVEL: INFO
       ENVIRONMENT: production
@@ -20,20 +23,6 @@ services:
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-cognibrew-raw}
     depends_on:
       rustfs:
-        condition: service_healthy
-
-  confidence-tuning:
-    image: teetinnapop/actions:cognibrew-cloud-confidence-tuning-latest
-    container_name: cognibrew-confidence-tuning
-    <<: *fastapi-common
-    environment:
-      LOG_LEVEL: INFO
-      ENVIRONMENT: production
-      API_PREFIX_STR: /api/v1
-      PROJECT_NAME: CogniBrew Confidence Tuning
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cognibrew}:${POSTGRES_PASSWORD:-cognibrew}@postgres:5432/${POSTGRES_DB:-cognibrew}
-    depends_on:
-      postgres:
         condition: service_healthy
 
   vector-operation:
@@ -70,6 +59,17 @@ services:
         condition: service_started
       vector-operation:
         condition: service_started
+
+  inference-server:
+    image: teetinnapop/actions:cognibrew-inference-server-latest
+    container_name: cognibrew-inference-server
+    <<: *fastapi-common
+    ports:
+      - "8010:8000"
+    environment:
+      LOG_LEVEL: INFO
+      MODEL_FRAMEWORK: ${MODEL_FRAMEWORK:-insightface}
+      MODEL_NAME: ${MODEL_NAME:-buffalo_sc}
 
 networks:
   cognibrew-cloud:

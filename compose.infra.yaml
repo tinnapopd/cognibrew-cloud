@@ -9,8 +9,8 @@ services:
       # - "9000:9000" # S3
       - "9001:9001" # Console
     environment:
-      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      RUSTFS_ACCESS_KEY: ${CCEG_S3_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${CCEG_S3_SECRET_KEY:-rustfsadmin}
       RUSTFS_CONSOLE_ENABLE: "true"
       RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
     volumes:
@@ -47,13 +47,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-cognibrew}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cognibrew}
-      POSTGRES_DB: ${POSTGRES_DB:-cognibrew}
+      POSTGRES_USER: ${INFRA_POSTGRES_USER:-cognibrew}
+      POSTGRES_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-cognibrew}
+      POSTGRES_DB: ${INFRA_POSTGRES_DB:-mlflowdb}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cognibrew}"]
+      test: ["CMD-SHELL", "pg_isready -U ${INFRA_POSTGRES_USER:-cognibrew}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,10 +67,12 @@ services:
     ports:
       - "5001:5000"
     environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER:-cognibrew}:${POSTGRES_PASSWORD:-cognibrew}@postgres:5432/${POSTGRES_DB:-cognibrew}
-      MLFLOW_S3_ENDPOINT_URL: http://rustfs:9000
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-rustfsadmin}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-rustfsadmin}
+      MLFLOW_WORKERS: ${INFRA_MLFLOW_WORKERS:-2}
+      MLFLOW_BACKEND_STORE_URI: postgresql://${INFRA_POSTGRES_USER:-cognibrew}:${INFRA_POSTGRES_PASSWORD:-cognibrew}@postgres:5432/${INFRA_POSTGRES_DB:-mlflowdb}
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: ${INFRA_MLFLOW_DEFAULT_ARTIFACT_ROOT:-s3://mlflow-artifacts/}
+      MLFLOW_S3_ENDPOINT_URL: ${INFRA_MLFLOW_S3_ENDPOINT_URL:-http://rustfs:9000}
+      AWS_ACCESS_KEY_ID: ${CCEG_S3_ACCESS_KEY:-rustfsadmin}
+      AWS_SECRET_ACCESS_KEY: ${CCEG_S3_SECRET_KEY:-rustfsadmin}
     depends_on:
       postgres:
         condition: service_healthy

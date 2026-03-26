@@ -22,3 +22,8 @@ Thumbs.db
 
 # Data volumes (if mounted locally)
 data/
+
+# Airflow Config / Logs / Plugins
+airflow-orchestrator/config/
+airflow-orchestrator/logs/
+airflow-orchestrator/plugins/

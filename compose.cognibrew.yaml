@@ -45,8 +45,6 @@ services:
       ENVIRONMENT: production
       API_PREFIX_STR: /api/v1
       PROJECT_NAME: CogniBrew Edge Sync
-      CONFIDENCE_TUNING_URL: http://confidence-tuning:8000
-      VECTOR_OPERATION_URL: http://vector-operation:8000
       SYNC_PAGE_SIZE: 50
 
   inference-server:

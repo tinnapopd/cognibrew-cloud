@@ -1,6 +1,9 @@
 # Environment
 .env
 
+# Local dev references
+REPOSITORIES.md
+
 # Python
 __pycache__/
 *.py[cod]

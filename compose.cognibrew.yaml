@@ -21,9 +21,6 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-cognibrew-raw}
-    depends_on:
-      rustfs:
-        condition: service_healthy
 
   vector-operation:
     image: teetinnapop/actions:cognibrew-cloud-vector-operation-latest
@@ -39,9 +36,6 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-face_embeddings}
       EMBEDDING_DIM: ${EMBEDDING_DIM:-512}
       DRIFT_THRESHOLD: ${DRIFT_THRESHOLD:-0.15}
-    depends_on:
-      qdrant:
-        condition: service_healthy
 
   edge-sync:
     image: teetinnapop/actions:cognibrew-cloud-edge-sync-latest
@@ -54,11 +48,6 @@ services:
       CONFIDENCE_TUNING_URL: http://confidence-tuning:8000
       VECTOR_OPERATION_URL: http://vector-operation:8000
       SYNC_PAGE_SIZE: 50
-    depends_on:
-      confidence-tuning:
-        condition: service_started
-      vector-operation:
-        condition: service_started
 
   inference-server:
     image: teetinnapop/actions:cognibrew-inference-server-latest
@@ -73,4 +62,4 @@ services:
 
 networks:
   cognibrew-cloud:
-    driver: bridge
+    external: true

@@ -88,4 +88,4 @@ volumes:
 
 networks:
   cognibrew-cloud:
-    driver: bridge
+    external: true

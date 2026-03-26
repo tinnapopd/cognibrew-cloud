@@ -1,1 +1,0 @@
-# Initialize cognibrew airflow package

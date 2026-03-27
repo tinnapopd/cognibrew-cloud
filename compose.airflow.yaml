@@ -128,13 +128,6 @@ services:
   airflow-apiserver:
     <<: *airflow-common
     command: api-server
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.airflow.rule=PathPrefix(`/airflow`)"
-      - "traefik.http.routers.airflow.entrypoints=web"
-      - "traefik.http.middlewares.airflow-strip.stripprefix.prefixes=/airflow"
-      - "traefik.http.routers.airflow.middlewares=airflow-strip"
-      - "traefik.http.services.airflow.loadbalancer.server.port=8080"
     environment:
       <<: *airflow-common-env
       AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "true"

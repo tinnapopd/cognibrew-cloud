@@ -6,34 +6,12 @@ x-fastapi-common: &fastapi-common
     - cognibrew-cloud
 
 services:
-  api-gateway:
-    image: kong:3.6
-    container_name: cognibrew-api-gateway
-    <<: *fastapi-common
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: "/usr/local/kong/declarative/kong.yml"
-      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
-      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
-      KONG_PROXY_ERROR_LOG: "/dev/stderr"
-      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
-      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
-      KONG_PROXY_LISTEN: "0.0.0.0:80"
-      KONG_TRUSTED_IPS: "0.0.0.0/0,::/0"
-      KONG_REAL_IP_HEADER: "X-Forwarded-For"
-    ports:
-      - "${API_GATEWAY_PORT:-80}:80"
-      - "8001:8001"
-    volumes:
-      - ./kong.yml:/usr/local/kong/declarative/kong.yml:ro
-    depends_on:
-      - edge-gateway
-      - edge-sync
-
   edge-gateway:
     image: teetinnapop/actions:cognibrew-cloud-edge-gateway-latest
     container_name: cognibrew-edge-gateway
     <<: *fastapi-common
+    ports:
+      - "${EDGE_GATEWAY_PORT:-8000}:8000"
     environment:
       LOG_LEVEL: ${CCEG_LOG_LEVEL:-INFO}
       ENVIRONMENT: ${CCEG_ENVIRONMENT:-production}
@@ -70,6 +48,8 @@ services:
     image: teetinnapop/actions:cognibrew-cloud-edge-sync-latest
     container_name: cognibrew-edge-sync
     <<: *fastapi-common
+    ports:
+      - "${EDGE_SYNC_PORT:-8002}:8000"
     environment:
       LOG_LEVEL: ${CCES_LOG_LEVEL:-INFO}
       ENVIRONMENT: ${CCES_ENVIRONMENT:-production}

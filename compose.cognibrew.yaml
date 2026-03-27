@@ -13,6 +13,7 @@ services:
     command:
       - "--api.dashboard=true"
       - "--api.insecure=true"
+      - "--accesslog=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=cognibrew-cloud"

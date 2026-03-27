@@ -7,7 +7,7 @@ x-fastapi-common: &fastapi-common
 
 services:
   api-gateway:
-    image: traefik:v3.4
+    image: traefik:v3.6.1
     container_name: cognibrew-api-gateway
     <<: *fastapi-common
     command:
@@ -17,8 +17,6 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=cognibrew-cloud"
       - "--entrypoints.web.address=:80"
-    environment:
-      DOCKER_API_VERSION: "1.40"
     ports:
       - "${API_GATEWAY_PORT:-80}:80"
       - "${TRAEFIK_DASHBOARD_PORT:-8090}:8080"

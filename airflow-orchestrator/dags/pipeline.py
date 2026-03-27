@@ -7,8 +7,6 @@
    based on today's batch.
 4. get_vectors: query vector-operation API for vectors to update edge sync.
 5. edge_sync_update: POST updated thresholds and vectors to edge-sync API.
-6. edge_sync_healthcheck: confirm edge-sync is healthy and ready to
-   serve pull bundles.
 """
 
 import json
@@ -347,32 +345,6 @@ def edge_sync_update_callable(**context: Any) -> None:
     logger.info("edge_sync_update: completed updates to edge sync service.")
 
 
-def edge_sync_healthcheck_callable(**context: Any) -> None:
-    """Confirm that edge-sync is alive and serving pull bundles.
-
-    Edge devices use the pull pattern — they call
-    GET /api/v1/sync/bundle on their own schedule.
-    This task verifies the sync service is reachable so operators
-    know the pipeline completed successfully.
-    """
-    url = f"{EDGE_SYNC_URL}/sync/status"
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            if resp.status != 200:
-                raise RuntimeError(
-                    f"Edge Sync health-check failed: HTTP {resp.status}"
-                )
-
-            logger.info(
-                "Edge Sync is healthy and ready to serve pull bundles."
-            )
-
-    except Exception as exc:
-        logger.warning(
-            "Edge Sync health-check could not reach service: %s", exc
-        )
-
-
 # DAG
 default_args = {
     "owner": "cognibrew",
@@ -389,7 +361,7 @@ with DAG(
         "Read batch --> process vectors (vector-operation API) "
         "--> get thresholds (vector-operation API) "
         "--> get vectors (vector-operation API) "
-        "--> update edge-sync --> edge-sync healthcheck"
+        "--> update edge-sync"
     ),
     schedule="0 0 * * *",  # 00:00 UTC daily
     start_date=datetime(2026, 1, 1),
@@ -426,17 +398,10 @@ with DAG(
         python_callable=edge_sync_update_callable,
     )
 
-    # 6. Health-check edge-sync service
-    edge_sync_healthcheck = PythonOperator(
-        task_id="edge_sync_healthcheck",
-        python_callable=edge_sync_healthcheck_callable,
-    )
-
     # Task dependencies
     (
         read_batch
         >> process_vectors
         >> [get_thresholds, get_vectors]
         >> edge_sync_update
-        >> edge_sync_healthcheck
     )  # type: ignore

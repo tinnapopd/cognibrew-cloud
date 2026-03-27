@@ -6,12 +6,37 @@ x-fastapi-common: &fastapi-common
     - cognibrew-cloud
 
 services:
+  api-gateway:
+    image: traefik:v3.4
+    container_name: cognibrew-api-gateway
+    <<: *fastapi-common
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=cognibrew-cloud"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "${API_GATEWAY_PORT:-80}:80"
+      - "${TRAEFIK_DASHBOARD_PORT:-8090}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - edge-gateway
+      - edge-sync
+
   edge-gateway:
     image: teetinnapop/actions:cognibrew-cloud-edge-gateway-latest
     container_name: cognibrew-edge-gateway
     <<: *fastapi-common
-    ports:
-      - "8000:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.edge-gateway.rule=PathPrefix(`/gateway`)"
+      - "traefik.http.routers.edge-gateway.entrypoints=web"
+      - "traefik.http.middlewares.edge-gateway-strip.stripprefix.prefixes=/gateway"
+      - "traefik.http.routers.edge-gateway.middlewares=edge-gateway-strip"
+      - "traefik.http.services.edge-gateway.loadbalancer.server.port=8000"
     environment:
       LOG_LEVEL: ${CCEG_LOG_LEVEL:-INFO}
       ENVIRONMENT: ${CCEG_ENVIRONMENT:-production}
@@ -48,8 +73,13 @@ services:
     image: teetinnapop/actions:cognibrew-cloud-edge-sync-latest
     container_name: cognibrew-edge-sync
     <<: *fastapi-common
-    ports:
-      - "8001:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.edge-sync.rule=PathPrefix(`/sync`)"
+      - "traefik.http.routers.edge-sync.entrypoints=web"
+      - "traefik.http.middlewares.edge-sync-strip.stripprefix.prefixes=/sync"
+      - "traefik.http.routers.edge-sync.middlewares=edge-sync-strip"
+      - "traefik.http.services.edge-sync.loadbalancer.server.port=8000"
     environment:
       LOG_LEVEL: ${CCES_LOG_LEVEL:-INFO}
       ENVIRONMENT: ${CCES_ENVIRONMENT:-production}

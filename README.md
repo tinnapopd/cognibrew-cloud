@@ -6,15 +6,16 @@ Cloud-side MLOps platform for the CogniBrew face recognition system. Handles bat
 
 | Service | Description | Port |
 |---------|-------------|------|
-| **Edge Gateway** | Receives raw batch uploads from edge devices | 8000 |
+| **API Gateway** | Traefik reverse proxy (`/gateway/*`, `/sync/*`) | 80 |
+| **Edge Gateway** | Receives raw batch uploads from edge devices | — (via gateway) |
 | **Vector Operation** | Vector CRUD, drift detection, threshold calibration | — |
-| **Edge Sync** | Assembles sync bundles for edge-pull pattern | — |
+| **Edge Sync** | Assembles sync bundles for edge-pull pattern | — (via gateway) |
 | **Inference Server** | InsightFace embedding inference | 8010 |
 | **MLflow** | Experiment tracking & artifact store | 5001 |
 | **Qdrant** | Vector database (512-dim cosine) | 6333 |
 | **PostgreSQL** | Metadata & MLflow backend store | 5432 |
 | **RustFS** | S3-compatible object store | 9001 (console) |
-| **Airflow** | DAG orchestration (CeleryExecutor) | 8080 |
+| **Airflow** | DAG orchestration (CeleryExecutor) | — (via gateway) |
 
 ## Related Repositories
 
@@ -69,7 +70,10 @@ Cloud-side MLOps platform for the CogniBrew face recognition system. Handles bat
 
 ### Verify
 
-- Airflow UI → [http://localhost:8080](http://localhost:8080) (user: `airflow` / pass: `airflow`)
+- API Gateway (Edge Gateway) → [http://localhost/gateway/api/v1/health](http://localhost/gateway/api/v1/health)
+- API Gateway (Edge Sync) → [http://localhost/sync/api/v1/health](http://localhost/sync/api/v1/health)
+- Traefik Dashboard → [http://localhost:8090](http://localhost:8090)
+- Airflow UI → [http://localhost/airflow](http://localhost/airflow) (user: `airflow` / pass: `airflow`)
 - MLflow UI → [http://localhost:5001](http://localhost:5001)
 - RustFS Console → [http://localhost:9001](http://localhost:9001)
 - Qdrant Dashboard → [http://localhost:6333/dashboard](http://localhost:6333/dashboard)

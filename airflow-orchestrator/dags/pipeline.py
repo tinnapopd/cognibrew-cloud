@@ -80,7 +80,7 @@ def _get(url: str, *, timeout: int = 30) -> dict:
         raise
 
 
-def _read_batch_callable(**context: Any) -> List[Dict[str, Any]]:
+def read_batch_callable(**context: Any) -> List[Dict[str, Any]]:
     """List all device JSON files for today from S3 and return flattened vectors.
 
     Pushes the list of VectorRecord dicts to XCom so downstream tasks
@@ -116,7 +116,6 @@ def _read_batch_callable(**context: Any) -> List[Dict[str, Any]]:
                     "username": v["username"],
                     "embedding": v["embedding"],
                     "is_correct": v.get("is_correct", True),
-                    "is_fallback": not v.get("is_correct", True),
                 }
             )
 
@@ -371,7 +370,7 @@ with DAG(
     # 1. Read raw batch data key
     read_batch = PythonOperator(
         task_id="read_batch",
-        python_callable=_read_batch_callable,
+        python_callable=read_batch_callable,
     )
 
     # 2. Process vectors via the vector-operation API

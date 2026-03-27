@@ -13,50 +13,62 @@ services:
     ports:
       - "8000:8000"
     environment:
-      LOG_LEVEL: INFO
-      ENVIRONMENT: production
-      API_PREFIX_STR: /api/v1
-      PROJECT_NAME: CogniBrew Edge Gateway
-      S3_ENDPOINT_URL: http://rustfs:9000
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-cognibrew-raw}
+      LOG_LEVEL: ${CCEG_LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${CCEG_ENVIRONMENT:-production}
+      API_PREFIX_STR: ${CCEG_API_PREFIX_STR:-/api/v1}
+      PROJECT_NAME: ${CCEG_PROJECT_NAME:-CogniBrew Edge Gateway}
+      S3_ENDPOINT_URL: ${CCEG_S3_ENDPOINT_URL:-http://rustfs:9000}
+      S3_ACCESS_KEY: ${CCEG_S3_ACCESS_KEY:-rustfsadmin}
+      S3_SECRET_KEY: ${CCEG_S3_SECRET_KEY:-rustfsadmin}
+      S3_BUCKET_NAME: ${CCEG_S3_BUCKET_NAME:-cognibrew-raw}
 
   vector-operation:
     image: teetinnapop/actions:cognibrew-cloud-vector-operation-latest
     container_name: cognibrew-vector-operation
     <<: *fastapi-common
     environment:
-      LOG_LEVEL: INFO
-      ENVIRONMENT: production
-      API_PREFIX_STR: /api/v1
-      PROJECT_NAME: CogniBrew Vector Operation
-      QDRANT_HOST: ${QDRANT_HOST:-qdrant}
-      QDRANT_PORT: ${QDRANT_PORT:-6334}
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-face_embeddings}
-      EMBEDDING_DIM: ${EMBEDDING_DIM:-512}
-      DRIFT_THRESHOLD: ${DRIFT_THRESHOLD:-0.15}
+      LOG_LEVEL: ${CCVO_LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${CCVO_ENVIRONMENT:-production}
+      API_PREFIX_STR: ${CCVO_API_PREFIX_STR:-/api/v1}
+      PROJECT_NAME: ${CCVO_PROJECT_NAME:-CogniBrew Vector Operation}
+      QDRANT_HOST: ${CCVO_QDRANT_HOST:-qdrant-vector-operation}
+      QDRANT_PORT: ${CCVO_QDRANT_PORT:-6334}
+      QDRANT_COLLECTION: ${CCVO_QDRANT_COLLECTION:-face_embeddings}
+      EMBEDDING_DIM: ${CCVO_EMBEDDING_DIM:-512}
+      CCVO_MLFLOW_TRACKING_URI: ${CCVO_MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      CCVO_MLFLOW_EXPERIMENT_NAME: ${CCVO_MLFLOW_EXPERIMENT_NAME:-vector-evolution}
+      CCVO_MAX_VECTORS_PER_USER: ${CCVO_MAX_VECTORS_PER_USER:-10}
+      CCVO_UPPER_SIMILARITY_THRESHOLD: ${CCVO_UPPER_SIMILARITY_THRESHOLD:-0.92}
+      CCVO_LOWER_SIMILARITY_THRESHOLD: ${CCVO_LOWER_SIMILARITY_THRESHOLD:-0.75}
+      CCVO_EMA_ALPHA: ${CCVO_EMA_ALPHA:-0.1}
+      CCVO_MIN_CALIBRATION_SAMPLES: ${CCVO_MIN_CALIBRATION_SAMPLES:-10}
+      CCVO_FALLBACK_SIMILARITY_THRESHOLD: ${CCVO_FALLBACK_SIMILARITY_THRESHOLD:-0.5}
 
   edge-sync:
     image: teetinnapop/actions:cognibrew-cloud-edge-sync-latest
     container_name: cognibrew-edge-sync
     <<: *fastapi-common
+    ports:
+      - "8001:8000"
     environment:
-      ENVIRONMENT: production
-      API_PREFIX_STR: /api/v1
-      PROJECT_NAME: CogniBrew Edge Sync
-      SYNC_PAGE_SIZE: 50
+      LOG_LEVEL: ${CCES_LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${CCES_ENVIRONMENT:-production}
+      API_PREFIX_STR: ${CCES_API_PREFIX_STR:-/api/v1}
+      PROJECT_NAME: ${CCES_PROJECT_NAME:-CogniBrew Edge Sync}
+      SYNC_PAGE_SIZE: ${CCES_SYNC_PAGE_SIZE:-50}
+      QDRANT_HOST: ${CCES_QDRANT_HOST:-qdrant-edge-sync}
+      QDRANT_PORT: ${CCES_QDRANT_PORT:-6334}
+      QDRANT_COLLECTION: ${CCES_QDRANT_COLLECTION:-sync_collection}
+      EMBEDDING_DIM: ${CCES_EMBEDDING_DIM:-512}
 
   inference-server:
     image: teetinnapop/actions:cognibrew-inference-server-latest
     container_name: cognibrew-inference-server
     <<: *fastapi-common
-    ports:
-      - "8010:8000"
     environment:
-      LOG_LEVEL: INFO
-      MODEL_FRAMEWORK: ${MODEL_FRAMEWORK:-insightface}
-      MODEL_NAME: ${MODEL_NAME:-buffalo_sc}
+      LOG_LEVEL: ${CCIS_LOG_LEVEL:-INFO}
+      MODEL_FRAMEWORK: ${CCIS_MODEL_FRAMEWORK:-insightface}
+      MODEL_NAME: ${CCIS_MODEL_NAME:-buffalo_sc}
 
 networks:
   cognibrew-cloud:

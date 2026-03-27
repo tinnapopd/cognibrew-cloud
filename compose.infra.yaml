@@ -23,15 +23,32 @@ services:
     networks:
       - cognibrew-cloud
 
-  qdrant:
+  qdrant-vector-operation:
     image: qdrant/qdrant:v1.17
-    container_name: cognibrew-qdrant
+    container_name: cognibrew-qdrant-vector-operation
     restart: unless-stopped
     ports:
       - "6333:6333" # HTTP
     #   - "6334:6334" # gRPC
     volumes:
-      - qdrant_data:/qdrant/storage
+      - qdrant_vector_operation_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/6334'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cognibrew-cloud
+
+  qdrant-edge-sync:
+    image: qdrant/qdrant:v1.17
+    container_name: cognibrew-qdrant-edge-sync
+    restart: unless-stopped
+    ports:
+      - "6334:6334" # HTTP
+    #   - "6334:6334" # gRPC
+    volumes:
+      - qdrant_edge_sync_data:/qdrant/storage
     healthcheck:
       test: ["CMD-SHELL", "bash -c ':> /dev/tcp/localhost/6334'"]
       interval: 10s
@@ -83,7 +100,8 @@ services:
 
 volumes:
   rustfs_data:
-  qdrant_data:
+  qdrant_vector_operation_data:
+  qdrant_edge_sync_data:
   postgres_data:
 
 networks:

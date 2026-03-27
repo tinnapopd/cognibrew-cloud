@@ -4,6 +4,8 @@
    enrollment records.
 2. process_baseline: POST each enrollment record to the vector-operation API
    to register the user's baseline embedding.
+3. edge_sync: fetch threshold per device from vector-operation, then POST
+   each enrollment embedding to edge-sync.
 """
 
 import json
@@ -27,6 +29,7 @@ logger = Logger().get_logger()
 VECTOR_OP_URL = os.getenv(
     "VECTOR_OP_URL", "http://vector-operation:8000/api/v1"
 )
+EDGE_SYNC_URL = os.getenv("EDGE_SYNC_URL", "http://edge-sync:8000/api/v1")
 
 # S3 / RustFS
 S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://rustfs:9000")
@@ -60,6 +63,18 @@ def _post(url: str, payload: dict, *, timeout: int = 60) -> dict:
     except urllib.error.HTTPError as exc:
         body = exc.read().decode(errors="replace")
         logger.error("POST %s --> HTTP %s: %s", url, exc.code, body)
+        raise
+
+
+def _get(url: str, *, timeout: int = 30) -> dict:
+    """GET *url* and return the parsed JSON response."""
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")
+        logger.error("GET %s → HTTP %s: %s", url, exc.code, body)
         raise
 
 
@@ -159,6 +174,65 @@ def process_baseline_callable(**context: Any) -> None:
     )
 
 
+def edge_sync_callable(**context: Any) -> None:
+    """Fetch threshold per device, then POST each enrollment embedding
+    to the edge-sync service."""
+    enrollments = context["ti"].xcom_pull(task_ids="read_enrollments") or []
+    if not enrollments:
+        logger.info("edge_sync: no enrollments — skipping.")
+        return
+
+    # Cache thresholds per device to avoid repeated calls
+    threshold_cache = {}
+    succeeded = 0
+    failed = 0
+
+    for record in enrollments:
+        device_id = record["device_id"]
+
+        # Fetch threshold once per device
+        if device_id not in threshold_cache:
+            try:
+                result = _get(
+                    f"{VECTOR_OP_URL}/vectors/threshold/{device_id}"
+                )
+                threshold_cache[device_id] = result["optimal_threshold"]
+            except Exception as exc:
+                logger.warning(
+                    "edge_sync: failed to get threshold for device %s: %s",
+                    device_id,
+                    exc,
+                )
+                threshold_cache[device_id] = 0.5  # fallback
+
+        try:
+            _post(
+                f"{EDGE_SYNC_URL}/sync/update",
+                {
+                    "device_id": device_id,
+                    "threshold": threshold_cache[device_id],
+                    "username": record["username"],
+                    "embedding": record["embedding"],
+                },
+            )
+            succeeded += 1
+        except Exception as exc:
+            logger.warning(
+                "edge_sync: failed for device %s, user %s: %s",
+                device_id,
+                record["username"],
+                exc,
+            )
+            failed += 1
+
+    logger.info(
+        "edge_sync: completed — %d succeeded, %d failed out of %d",
+        succeeded,
+        failed,
+        len(enrollments),
+    )
+
+
 # DAG
 default_args = {
     "owner": "cognibrew",
@@ -173,7 +247,8 @@ with DAG(
     default_args=default_args,
     description=(
         "Read enrollment JSONs from S3 enrollments/{username}/ "
-        "--> process baseline via vector-operation API"
+        "--> process baseline via vector-operation API "
+        "--> sync to edge-sync"
     ),
     schedule=None,
     start_date=datetime(2026, 1, 1),
@@ -192,5 +267,11 @@ with DAG(
         python_callable=process_baseline_callable,
     )
 
+    # 3. Sync enrollments to edge-sync service
+    edge_sync = PythonOperator(
+        task_id="edge_sync",
+        python_callable=edge_sync_callable,
+    )
+
     # Task dependencies
-    read_enrollments >> process_baseline
+    read_enrollments >> process_baseline >> edge_sync

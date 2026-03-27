@@ -57,15 +57,6 @@ services:
       QDRANT_COLLECTION: ${CCES_QDRANT_COLLECTION:-sync_collection}
       EMBEDDING_DIM: ${CCES_EMBEDDING_DIM:-512}
 
-  inference-server:
-    image: teetinnapop/actions:cognibrew-inference-server-latest
-    container_name: cognibrew-inference-server
-    <<: *fastapi-common
-    environment:
-      LOG_LEVEL: ${CCIS_LOG_LEVEL:-INFO}
-      MODEL_FRAMEWORK: ${CCIS_MODEL_FRAMEWORK:-insightface}
-      MODEL_NAME: ${CCIS_MODEL_NAME:-buffalo_sc}
-
 networks:
   cognibrew-cloud:
     external: true

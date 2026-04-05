@@ -1,6 +1,6 @@
 """Task flow
 -------------------------------------------------------------------------------
-1. read_enrollments: scan S3 `enrollments/{username}/*.json` and collect
+1. read_enrollments: scan S3 `enrollments/{username}/{device_id}/*.json` and collect
    enrollment records.
 2. process_baseline: POST each enrollment record to the vector-operation API
    to register the user's baseline embedding.
@@ -79,7 +79,7 @@ def _get(url: str, *, timeout: int = 30) -> dict:
 
 
 def read_enrollments_callable(**context: Any) -> List[Dict[str, Any]]:
-    """Scan S3 enrollments/{username}/*.json and return enrollment records.
+    """Scan S3 enrollments/{username}/{device_id}/*.json and return enrollment records.
 
     Each JSON file contains:
         {
@@ -137,40 +137,56 @@ def process_baseline_callable(**context: Any) -> None:
         logger.info("process_baseline: no enrollments to process — skipping.")
         return None
 
+    # Group vectors by device_id and username
+    group_by_device: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+    for record in enrollments:
+        device_id = record["device_id"]
+        username = record["username"]
+
+        if device_id not in group_by_device:
+            group_by_device[device_id] = {}
+
+        if username not in group_by_device[device_id]:
+            group_by_device[device_id][username] = []
+
+        group_by_device[device_id][username].append(
+            {
+                "embedding": record["embedding"],
+                "is_correct": True,
+            }
+        )
+
     succeeded = 0
     failed = 0
-    for record in enrollments:
-        payload = {
-            "device_id": record["device_id"],
-            "username": record["username"],
-            "vectors": [
-                {
-                    "embedding": record["embedding"],
-                    "is_correct": True,
-                }
-            ],
-        }
-        try:
-            _post(
-                f"{VECTOR_OP_URL}/vectors/update/user-baseline",
-                payload,
-            )
-            succeeded += 1
-        except Exception as exc:
-            logger.warning(
-                "process_baseline: failed for user %s (device %s): %s",
-                record["username"],
-                record["device_id"],
-                exc,
-            )
-            failed += 1
-            continue
+
+    for device_id, user_vectors in group_by_device.items():
+        for username, user_embeddings in user_vectors.items():
+            payload = {
+                "device_id": device_id,
+                "username": username,
+                "vectors": user_embeddings,
+            }
+            try:
+                _post(
+                    f"{VECTOR_OP_URL}/vectors/update/user-baseline",
+                    payload,
+                )
+                succeeded += 1
+            except Exception as exc:
+                logger.warning(
+                    "process_baseline: failed for user %s (device %s): %s",
+                    username,
+                    device_id,
+                    exc,
+                )
+                failed += 1
+                continue
 
     logger.info(
-        "process_baseline: completed — %d succeeded, %d failed out of %d",
+        "process_baseline: completed — %d succeeded, %d failed out of %d groups",
         succeeded,
         failed,
-        len(enrollments),
+        succeeded + failed,
     )
 
 
@@ -193,9 +209,7 @@ def edge_sync_callable(**context: Any) -> None:
         # Fetch threshold once per device
         if device_id not in threshold_cache:
             try:
-                result = _get(
-                    f"{VECTOR_OP_URL}/vectors/threshold/{device_id}"
-                )
+                result = _get(f"{VECTOR_OP_URL}/vectors/threshold/{device_id}")
                 threshold_cache[device_id] = result["optimal_threshold"]
             except Exception as exc:
                 logger.warning(

@@ -1,0 +1,63 @@
+{{- if .Values.edgeGateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cognibrew-app.edge-gateway.fullname" . }}
+  labels:
+    {{- include "cognibrew-app.componentLabels" (dict "ctx" . "component" "edge-gateway") | nindent 4 }}
+spec:
+  replicas: {{ .Values.edgeGateway.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "edge-gateway") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "edge-gateway") | nindent 8 }}
+    spec:
+      containers:
+        - name: edge-gateway
+          image: "{{ .Values.edgeGateway.image.repository }}:{{ .Values.edgeGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.edgeGateway.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.edgeGateway.env.logLevel | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.edgeGateway.env.environment | quote }}
+            - name: API_PREFIX_STR
+              value: {{ .Values.edgeGateway.env.apiPrefixStr | quote }}
+            - name: PROJECT_NAME
+              value: {{ .Values.edgeGateway.env.projectName | quote }}
+            - name: S3_ENDPOINT_URL
+              value: {{ .Values.edgeGateway.s3.endpointUrl | quote }}
+            - name: S3_ACCESS_KEY
+              value: {{ .Values.edgeGateway.s3.accessKey | quote }}
+            - name: S3_SECRET_KEY
+              value: {{ .Values.edgeGateway.s3.secretKey | quote }}
+            - name: S3_BUCKET_NAME
+              value: {{ .Values.edgeGateway.s3.bucketName | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.edgeGateway.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.edgeGateway.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.edgeGateway.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

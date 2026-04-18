@@ -1,0 +1,145 @@
+# =============================================================================
+# CogniBrew Airflow Orchestrator Values
+# =============================================================================
+# This chart wraps the official Apache Airflow Helm chart.
+# All values under 'airflow:' are passed directly to the subchart.
+# See: https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
+
+airflow:
+  # Airflow executor type
+  executor: LocalExecutor
+
+  # Airflow image configuration
+  # Override if you have a custom image with DAGs baked in
+  # images:
+  #   airflow:
+  #     repository: <your-custom-image>
+  #     tag: latest
+
+  # Default Airflow user
+  webserverSecretKey: "cognibrew-airflow-secret-key"
+
+  # Create default admin user
+  createUserJob:
+    useHelmHooks: false
+
+  # Web server configuration
+  webserver:
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    defaultUser:
+      enabled: true
+      username: airflow
+      password: airflow
+      firstName: Airflow
+      lastName: Admin
+      email: admin@cognibrew.local
+      role: Admin
+
+  # Scheduler configuration
+  scheduler:
+    replicas: 1
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    startupProbe:
+      timeoutSeconds: 60
+      failureThreshold: 15
+      command:
+        - sh
+        - -c
+        - "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec airflow jobs check --job-type SchedulerJob --local"
+    livenessProbe:
+      failureThreshold: 5
+      command:
+        - sh
+        - -c
+        - "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec airflow jobs check --job-type SchedulerJob --local"
+
+  # DAG Processor configuration
+  dagProcessor:
+    enabled: true
+    replicas: 1
+
+  # Disable components not needed
+  flower:
+    enabled: false
+  redis:
+    enabled: false
+  workers:
+    replicas: 0
+
+  # PostgreSQL
+  postgresql:
+    enabled: true
+    image:
+      registry: docker.io
+      repository: bitnami/postgresql
+      tag: "latest"
+    auth:
+      username: airflow
+      password: airflow
+      database: airflow
+
+  # Environment variables for DAGs
+  # These point to CogniBrew app services (cross-namespace references)
+  env:
+    - name: VECTOR_OP_URL
+      value: "http://cognibrew-app-vector-operation.cognibrew-app.svc.cluster.local:8000/api/v1"
+    - name: EDGE_SYNC_URL
+      value: "http://cognibrew-app-edge-sync.cognibrew-app.svc.cluster.local:8000/api/v1"
+    - name: S3_ENDPOINT_URL
+      value: "http://cognibrew-infra-rustfs-svc.cognibrew-infra.svc.cluster.local:9000"
+    - name: S3_ACCESS_KEY
+      value: "rustfsadmin"
+    - name: S3_SECRET_KEY
+      value: "rustfsadmin"
+    - name: S3_BUCKET_NAME
+      value: "cognibrew-raw"
+    - name: AIRFLOW__CORE__DEFAULT_TIMEZONE
+      value: "Asia/Bangkok"
+    - name: AIRFLOW__CORE__LOAD_EXAMPLES
+      value: "false"
+    - name: AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION
+      value: "true"
+    # Log metrics, parameters, and models to MLFlow
+    - name: MLFLOW_TRACKING_URI
+      value: "http://cognibrew-infra-mlflow.cognibrew-infra.svc.cluster.local:5000"
+    # Install additional python dependencies dynamically on pod startup
+    # THIS IS NOT RECOMMENDED FOR PRODUCTION -- BUT JUST FOR DEMO
+    - name: _PIP_ADDITIONAL_REQUIREMENTS
+      value: "python-json-logger==3.3.0 boto3==1.37.23"
+
+  # DAGs configuration
+  # Option 1: Git sync (recommended for production)
+  dags:
+    persistence:
+      enabled: false
+    gitSync:
+      enabled: true
+      repo: https://github.com/tinnapopd/cognibrew-cloud.git
+      branch: main
+      subPath: airflow-orchestrator/dags
+      wait: 60
+
+  # Airflow config overrides
+  config:
+    core:
+      dags_are_paused_at_creation: "true"
+      load_examples: "false"
+    scheduler:
+      enable_health_check: "true"
+
+  # Explicitly disable ingress
+  ingress:
+    web:
+      enabled: false

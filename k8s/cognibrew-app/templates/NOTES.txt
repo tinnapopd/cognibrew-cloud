@@ -1,0 +1,25 @@
+CogniBrew Application services have been installed.
+
+Services deployed:
+{{- if .Values.edgeGateway.enabled }}
+  ✓ Edge Gateway    — {{ include "cognibrew-app.edge-gateway.fullname" . }}:{{ .Values.edgeGateway.service.port }}
+{{- end }}
+{{- if .Values.vectorOperation.enabled }}
+  ✓ Vector Operation — {{ include "cognibrew-app.vector-operation.fullname" . }}:{{ .Values.vectorOperation.service.port }}
+{{- end }}
+{{- if .Values.edgeSync.enabled }}
+  ✓ Edge Sync       — {{ include "cognibrew-app.edge-sync.fullname" . }}:{{ .Values.edgeSync.service.port }}
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+Ingress is enabled:
+{{- range .Values.ingress.hosts }}
+  http://{{ .host }}
+{{- end }}
+{{- else }}
+Ingress is disabled. Access services via port-forward:
+  kubectl port-forward svc/{{ include "cognibrew-app.edge-gateway.fullname" . }} 8080:{{ .Values.edgeGateway.service.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+To verify, run:
+  kubectl get pods -n {{ .Release.Namespace }}

@@ -1,0 +1,37 @@
+apiVersion: v2
+name: cognibrew-infra
+description: CogniBrew Cloud infrastructure — RustFS, Qdrant, PostgreSQL, and MLflow
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+dependencies:
+  # https://artifacthub.io/packages/helm/rustfs/rustfs  
+  - name: rustfs
+    version: 0.0.90
+    repository: https://charts.rustfs.com
+    condition: rustfs.enabled
+
+  - name: qdrant
+    version: 1.17.1
+    repository: https://qdrant.github.io/qdrant-helm
+    alias: qdrant-vector-operation
+    condition: qdrant-vector-operation.enabled
+
+  - name: qdrant
+    version: 1.17.1
+    repository: https://qdrant.github.io/qdrant-helm
+    alias: qdrant-edge-sync
+    condition: qdrant-edge-sync.enabled
+
+  # https://artifacthub.io/packages/helm/bitnami/postgresql
+  - name: postgresql
+    version: 18.5.15
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+
+  # https://artifacthub.io/packages/helm/community-charts/mlflow
+  - name: mlflow
+    version: 1.8.1
+    repository: https://community-charts.github.io/helm-charts
+    condition: mlflow.enabled

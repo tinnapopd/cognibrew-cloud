@@ -1,0 +1,65 @@
+{{- if .Values.edgeSync.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cognibrew-app.edge-sync.fullname" . }}
+  labels:
+    {{- include "cognibrew-app.componentLabels" (dict "ctx" . "component" "edge-sync") | nindent 4 }}
+spec:
+  replicas: {{ .Values.edgeSync.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "edge-sync") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "edge-sync") | nindent 8 }}
+    spec:
+      containers:
+        - name: edge-sync
+          image: "{{ .Values.edgeSync.image.repository }}:{{ .Values.edgeSync.image.tag }}"
+          imagePullPolicy: {{ .Values.edgeSync.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.edgeSync.env.logLevel | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.edgeSync.env.environment | quote }}
+            - name: API_PREFIX_STR
+              value: {{ .Values.edgeSync.env.apiPrefixStr | quote }}
+            - name: PROJECT_NAME
+              value: {{ .Values.edgeSync.env.projectName | quote }}
+            - name: SYNC_PAGE_SIZE
+              value: {{ .Values.edgeSync.env.syncPageSize | quote }}
+            - name: QDRANT_HOST
+              value: {{ .Values.edgeSync.qdrant.host | quote }}
+            - name: QDRANT_PORT
+              value: {{ .Values.edgeSync.qdrant.port | quote }}
+            - name: QDRANT_COLLECTION
+              value: {{ .Values.edgeSync.qdrant.collection | quote }}
+            - name: EMBEDDING_DIM
+              value: {{ .Values.edgeSync.qdrant.embeddingDim | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.edgeSync.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.edgeSync.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.edgeSync.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

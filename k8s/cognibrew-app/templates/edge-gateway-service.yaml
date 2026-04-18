@@ -1,0 +1,17 @@
+{{- if .Values.edgeGateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cognibrew-app.edge-gateway.fullname" . }}
+  labels:
+    {{- include "cognibrew-app.componentLabels" (dict "ctx" . "component" "edge-gateway") | nindent 4 }}
+spec:
+  type: {{ .Values.edgeGateway.service.type }}
+  ports:
+    - port: {{ .Values.edgeGateway.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "edge-gateway") | nindent 4 }}
+{{- end }}

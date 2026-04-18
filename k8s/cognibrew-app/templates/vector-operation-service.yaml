@@ -1,0 +1,17 @@
+{{- if .Values.vectorOperation.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cognibrew-app.vector-operation.fullname" . }}
+  labels:
+    {{- include "cognibrew-app.componentLabels" (dict "ctx" . "component" "vector-operation") | nindent 4 }}
+spec:
+  type: {{ .Values.vectorOperation.service.type }}
+  ports:
+    - port: {{ .Values.vectorOperation.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "vector-operation") | nindent 4 }}
+{{- end }}

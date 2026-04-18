@@ -1,0 +1,164 @@
+# =============================================================================
+# CogniBrew Infrastructure Values
+# =============================================================================
+
+# Global settings
+global:
+  storageClass: ""
+
+# =============================================================================
+# RustFS (Data Lake)
+# =============================================================================
+rustfs:
+  enabled: true
+  replicaCount: 1
+  config:
+    rustfs:
+      address: ":9000"
+      console_address: ":9001"
+      region: "ap-southeast-1"
+  secret:
+    rustfs:
+      access_key: rustfsadmin
+      secret_key: rustfsadmin
+  service:
+    type: ClusterIP
+    endpoint:
+      port: 9000
+    console:
+      port: 9001
+  ingress:
+    # Default is true, and use ingress-nginx controller
+    enabled: false
+  storageclass:
+    name: "local-path"
+    dataStorageSize: 256Mi
+    logStorageSize: 256Mi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  mode:
+    # For single node deployment
+    standalone:
+      enabled: true
+    distributed:
+      enabled: false
+  livenessProbe:
+    httpGet:
+      path: /health
+  readinessProbe:
+    httpGet:
+      path: /health/ready
+
+# =============================================================================
+# Qdrant — Vector Operation instance
+# =============================================================================
+qdrant-vector-operation:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  persistence:
+    accessModes: ["ReadWriteOnce"]
+    size: 1Gi
+    storageClassName: "local-path"
+  config:
+    cluster:
+      enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+# =============================================================================
+# Qdrant — Edge Sync instance
+# =============================================================================
+qdrant-edge-sync:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  persistence:
+    accessModes: ["ReadWriteOnce"]
+    size: 1Gi
+    storageClassName: "local-path"
+  config:
+    cluster:
+      enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+# =============================================================================
+# MLflow + PostgreSQL
+# =============================================================================
+mlflow:
+  service:
+    type: ClusterIP
+    
+  backendStore:
+    databaseMigration: true
+    databaseConnectionCheck: true
+    postgres:
+      enabled: true
+      host: "cognibrew-infra-postgresql"
+      port: 5432
+      database: mlflow
+      user: cognibrew
+      password: cognibrew
+  artifactRoot:
+    s3:
+      enabled: true
+      bucket: mlflow-artifacts
+      awsAccessKeyId: rustfsadmin
+      awsSecretAccessKey: rustfsadmin
+  extraEnvVars:
+    MLFLOW_S3_ENDPOINT_URL: "http://cognibrew-infra-rustfs-svc:9000"
+    MLFLOW_SERVER_ALLOWED_HOSTS: "*"
+  serviceMonitor:
+    enabled: false
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 5000
+    name: http
+    containerPort: 5000
+    containerPortName: mlflow
+
+postgresql:
+  enabled: true
+  # Standalone mode (no read replicas)
+  architecture: standalone
+  auth:
+    username: cognibrew
+    password: cognibrew
+    database: mlflow
+  primary:
+    # Use the nano preset for minimal resource usage
+    resourcesPreset: "nano"
+    persistence:
+      enabled: true
+      storageClass: "local-path"
+      size: 1Gi
+    service:
+      type: ClusterIP
+      ports:
+        postgresql: 5432

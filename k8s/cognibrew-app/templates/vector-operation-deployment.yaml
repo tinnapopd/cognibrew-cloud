@@ -1,0 +1,79 @@
+{{- if .Values.vectorOperation.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cognibrew-app.vector-operation.fullname" . }}
+  labels:
+    {{- include "cognibrew-app.componentLabels" (dict "ctx" . "component" "vector-operation") | nindent 4 }}
+spec:
+  replicas: {{ .Values.vectorOperation.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "vector-operation") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cognibrew-app.componentSelectorLabels" (dict "ctx" . "component" "vector-operation") | nindent 8 }}
+    spec:
+      containers:
+        - name: vector-operation
+          image: "{{ .Values.vectorOperation.image.repository }}:{{ .Values.vectorOperation.image.tag }}"
+          imagePullPolicy: {{ .Values.vectorOperation.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.vectorOperation.env.logLevel | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.vectorOperation.env.environment | quote }}
+            - name: API_PREFIX_STR
+              value: {{ .Values.vectorOperation.env.apiPrefixStr | quote }}
+            - name: PROJECT_NAME
+              value: {{ .Values.vectorOperation.env.projectName | quote }}
+            - name: QDRANT_HOST
+              value: {{ .Values.vectorOperation.qdrant.host | quote }}
+            - name: QDRANT_PORT
+              value: {{ .Values.vectorOperation.qdrant.port | quote }}
+            - name: QDRANT_COLLECTION
+              value: {{ .Values.vectorOperation.qdrant.collection | quote }}
+            - name: EMBEDDING_DIM
+              value: {{ .Values.vectorOperation.qdrant.embeddingDim | quote }}
+            - name: MLFLOW_TRACKING_URI
+              value: {{ .Values.vectorOperation.mlflow.trackingUri | quote }}
+            - name: MLFLOW_EXPERIMENT_NAME
+              value: {{ .Values.vectorOperation.mlflow.experimentName | quote }}
+            - name: MAX_VECTORS_PER_USER
+              value: {{ .Values.vectorOperation.maxVectorsPerUser | quote }}
+            - name: UPPER_SIMILARITY_THRESHOLD
+              value: {{ .Values.vectorOperation.upperSimilarityThreshold | quote }}
+            - name: LOWER_SIMILARITY_THRESHOLD
+              value: {{ .Values.vectorOperation.lowerSimilarityThreshold | quote }}
+            - name: EMA_ALPHA
+              value: {{ .Values.vectorOperation.emaAlpha | quote }}
+            - name: MIN_CALIBRATION_SAMPLES
+              value: {{ .Values.vectorOperation.minCalibrationSamples | quote }}
+            - name: FALLBACK_SIMILARITY_THRESHOLD
+              value: {{ .Values.vectorOperation.fallbackSimilarityThreshold | quote }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.vectorOperation.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.vectorOperation.env.apiPrefixStr }}/utils/health-check/
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- with .Values.vectorOperation.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

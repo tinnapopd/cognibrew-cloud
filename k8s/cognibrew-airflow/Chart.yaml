@@ -1,0 +1,12 @@
+apiVersion: v2
+name: cognibrew-airflow
+description: CogniBrew Cloud Airflow orchestrator
+type: application
+version: 0.1.0
+appVersion: "3.1.8"
+
+dependencies:
+  # https://artifacthub.io/packages/helm/apache-airflow/airflow
+  - name: airflow
+    version: 1.20.0
+    repository: https://airflow.apache.org

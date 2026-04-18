@@ -1,0 +1,21 @@
+CogniBrew Infrastructure has been installed.
+
+Components deployed:
+{{- if .Values.rustfs.enabled }}
+  ✓ RustFS (S3)                — {{ .Release.Name }}-rustfs-svc:9000  (console :9001)
+{{- end }}
+{{- if (index .Values "qdrant-vector-operation" "enabled") }}
+  ✓ Qdrant (Vector Operation)  — {{ .Release.Name }}-qdrant-vector-operation:6333 (gRPC :6334)
+{{- end }}
+{{- if (index .Values "qdrant-edge-sync" "enabled") }}
+  ✓ Qdrant (Edge Sync)         — {{ .Release.Name }}-qdrant-edge-sync:6333 (gRPC :6334)
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+  ✓ PostgreSQL                 — {{ .Release.Name }}-postgresql:5432
+{{- end }}
+{{- if .Values.mlflow }}
+  ✓ MLflow                     — {{ .Release.Name }}-mlflow:5000
+{{- end }}
+
+To verify, run:
+  kubectl get pods -n {{ .Release.Namespace }}

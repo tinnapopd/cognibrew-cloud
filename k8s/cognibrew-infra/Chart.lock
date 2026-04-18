@@ -1,0 +1,18 @@
+dependencies:
+- name: rustfs
+  repository: https://charts.rustfs.com
+  version: 0.0.90
+- name: qdrant
+  repository: https://qdrant.github.io/qdrant-helm
+  version: 1.17.1
+- name: qdrant
+  repository: https://qdrant.github.io/qdrant-helm
+  version: 1.17.1
+- name: postgresql
+  repository: https://charts.bitnami.com/bitnami
+  version: 18.5.15
+- name: mlflow
+  repository: https://community-charts.github.io/helm-charts
+  version: 1.8.1
+digest: sha256:ad73d2bf2df11a161cd14bb356bd88579722653e62fca954630571511c53a11c
+generated: "2026-04-04T22:33:53.612822+07:00"

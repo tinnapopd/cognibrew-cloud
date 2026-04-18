@@ -30,3 +30,6 @@ data/
 airflow-orchestrator/config/
 airflow-orchestrator/logs/
 airflow-orchestrator/plugins/
+# Helm dependencies
+**/charts/*.tgz
+**/charts/*.prov

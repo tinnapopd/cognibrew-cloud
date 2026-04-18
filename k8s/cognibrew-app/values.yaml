@@ -1,0 +1,111 @@
+# =============================================================================
+# CogniBrew Application Values
+# =============================================================================
+
+# Global settings
+global:
+  # Image registry prefix (all services use same registry)
+  imageRegistry: teetinnapop/actions
+
+# =============================================================================
+# Edge Gateway
+# =============================================================================
+edgeGateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: teetinnapop/actions
+    tag: cognibrew-cloud-edge-gateway-latest
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    logLevel: INFO
+    environment: production
+    apiPrefixStr: /api/v1
+    projectName: "CogniBrew Edge Gateway"
+  s3:
+    endpointUrl: "http://cognibrew-infra-rustfs-svc.cognibrew-infra.svc.cluster.local:9000"
+    accessKey: rustfsadmin
+    secretKey: rustfsadmin
+    bucketName: cognibrew-raw
+  resources: {}
+
+# =============================================================================
+# Vector Operation
+# =============================================================================
+vectorOperation:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: teetinnapop/actions
+    tag: cognibrew-cloud-vector-operation-latest
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    logLevel: INFO
+    environment: production
+    apiPrefixStr: /api/v1
+    projectName: "CogniBrew Vector Operation"
+  qdrant:
+    host: "cognibrew-infra-qdrant-vector-operation.cognibrew-infra.svc.cluster.local"
+    port: 6334
+    collection: face_embeddings
+    embeddingDim: 512
+  mlflow:
+    trackingUri: "http://cognibrew-infra-mlflow.cognibrew-infra.svc.cluster.local:5000"
+    experimentName: vector-evolution
+  maxVectorsPerUser: 10
+  upperSimilarityThreshold: 0.92
+  lowerSimilarityThreshold: 0.75
+  emaAlpha: 0.1
+  minCalibrationSamples: 10
+  fallbackSimilarityThreshold: 0.5
+  resources: {}
+
+# =============================================================================
+# Edge Sync
+# =============================================================================
+edgeSync:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: teetinnapop/actions
+    tag: cognibrew-cloud-edge-sync-latest
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    logLevel: INFO
+    environment: production
+    apiPrefixStr: /api/v1
+    projectName: "CogniBrew Edge Sync"
+    syncPageSize: 50
+  qdrant:
+    host: "cognibrew-infra-qdrant-edge-sync.cognibrew-infra.svc.cluster.local"
+    port: 6334
+    collection: sync_collection
+    embeddingDim: 512
+  resources: {}
+
+# =============================================================================
+# Ingress
+# =============================================================================
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: cognibrew.local
+      paths:
+        - path: /gateway
+          pathType: Prefix
+          service: edge-gateway
+        - path: /sync
+          pathType: Prefix
+          service: edge-sync
+  tls: []
